@@ -52,6 +52,7 @@ uses
   Changelog (latest changes first):
     27th September 2014 (feature update):
       - Added Culling methods at every level of the Text Cache Factory.
+      - No longer just referencing the passed TFont value, copying it internally instead.
     27th September 2014 (bug fix update):
       - Fixed two minor bugs.
     27th September 2014:
@@ -626,7 +627,8 @@ constructor TFETextCacheFont.Create(const AFill: TFETextCacheColor; const AFont:
 begin
   inherited Create;
   FColor := AFill;
-  FValue := AFont;
+  FValue := TFont.Create;
+  FValue.Assign(AFont);
   FColor.AddFont(Self);
 end;
 
@@ -655,6 +657,7 @@ destructor TFETextCacheFont.Destroy;
 begin
   FColor.DeleteFont(Self);
   ClearTextSettings;
+  FValue.Free;
   inherited;
 end;
 
