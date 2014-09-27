@@ -194,8 +194,6 @@ type
     constructor Create(const AFont: TFETextCacheFont; const AFlags: TFillTextFlags; const AWordWrap: Boolean; const AAlignHor, AAlignVer: TTextAlign); reintroduce;
     destructor Destroy; override;
 
-    procedure Cull(const ANotUsedForSeconds: Double); override;
-
     property AlignHor: TTextAlign read FAlignHor;
     property AlignVer: TTextAlign read FAlignVer;
     property Flags: TFillTextflags read FFlags;
@@ -702,12 +700,6 @@ begin
   FAlignVer := AAlignVer;
   FFont.AddTextSettings(Self);
   FImages := TFETextCache.Create(Self);
-end;
-
-procedure TFETextCacheTextSettings.Cull(const ANotUsedForSeconds: Double);
-begin
-  FImages.Cull(ANotUsedForSeconds);
-  inherited;
 end;
 
 destructor TFETextCacheTextSettings.Destroy;
