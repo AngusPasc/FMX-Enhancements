@@ -42,7 +42,7 @@ interface
 uses
   System.Classes, System.SysUtils, System.UITypes, System.Types, System.Math,
   FMX.Graphics, FMX.Types, FMX.TextLayout,
-  LKSL.Common.Types;
+  FMXE.Common.Types;
 
 {
   About this unit:
@@ -50,6 +50,8 @@ uses
     - Note that the LKSL is used within this unit.
 
   Changelog (latest changes first):
+    27th September 2014 (feature update):
+      - Added Culling methods at every level of the Text Cache Factory.
     27th September 2014 (bug fix update):
       - Fixed two minor bugs.
     27th September 2014:
@@ -90,6 +92,8 @@ type
   public
     destructor Destroy; override;
 
+    procedure CullCache(const ANotUsedForSeconds: Double);
+
     procedure Render(const ACanvas: TCanvas; const APosition: TPointF; const AAngle: Integer; const AColor: TAlphaColor; const AFont: TFont; const AText: String; const AWordWrap: Boolean; const AOpacity: Single; const AFlags: TFillTextFlags; const AHTextAlign, AVTextAlign: TTextAlign; const AHighSpeed: Boolean = False); overload;
     procedure Render(const ACanvas: TCanvas; const ARect: TRectF; const AAngle: Integer; const AColor: TAlphaColor; const AFont: TFont; const AText: String; const AWordWrap: Boolean; const AOpacity: Single; const AFlags: TFillTextFlags; const AHTextAlign, AVTextAlign: TTextAlign; const AHighSpeed: Boolean = False); overload;
 
@@ -100,7 +104,7 @@ type
     TFETextCacheString
       -
   }
-  TFETextCacheString = class(TPersistent)
+  TFETextCacheString = class(TFECullablePersistent)
   private
     FColors: TFETextCacheColorArray;
     FIndex: Integer;
@@ -114,6 +118,9 @@ type
   public
     constructor Create(const ACacheManager: TFETextCacheFactory; const AValue: String); reintroduce;
     destructor Destroy; override;
+
+    procedure Cull(const ANotUsedForSeconds: Double); override;
+
     property Colors[const AColor: TAlphaColor]: TFETextCacheColor read GetColor;
     property Value: String read FValue;
   end;
@@ -122,7 +129,7 @@ type
     TFETextCacheColor
       -
   }
-  TFETextCacheColor = class(TPersistent)
+  TFETextCacheColor = class(TFECullablePersistent)
   private
     FFonts: TFETextCacheFontArray;
     FIndex: Integer;
@@ -136,6 +143,9 @@ type
   public
     constructor Create(const AString: TFETextCacheString; const AValue: TAlphaColor); reintroduce;
     destructor Destroy; override;
+
+    procedure Cull(const ANotUsedForSeconds: Double); override;
+
     property Fonts[const AFont: TFont]: TFETextCacheFont read GetFont;
     property Value: TAlphaColor read FValue;
   end;
@@ -144,7 +154,7 @@ type
     TFETextCacheFont
       -
   }
-  TFETextCacheFont = class(TPersistent)
+  TFETextCacheFont = class(TFECullablePersistent)
   private
     FColor: TFETextCacheColor;
     FIndex: Integer;
@@ -158,6 +168,9 @@ type
   public
     constructor Create(const AFill: TFETextCacheColor; const AFont: TFont); reintroduce;
     destructor Destroy; override;
+
+    procedure Cull(const ANotUsedForSeconds: Double); override;
+
     property Settings[const AFlags: TFillTextFlags; const AWordWrap: Boolean; const AAlignHor, AAlignVer: TTextAlign]: TFETextCacheTextSettings read GetTextSettings;
     property Value: TFont read FValue;
   end;
@@ -166,7 +179,7 @@ type
     TFETextCacheTextSettings
       -
   }
-  TFETextCacheTextSettings = class(TPersistent)
+  TFETextCacheTextSettings = class(TFECullablePersistent)
   private
     FAlignHor: TTextAlign;
     FAlignVer: TTextAlign;
@@ -175,13 +188,17 @@ type
     FImages: TFETextCache;
     FIndex: Integer;
     FWordWrap: Boolean;
+    function GetImages: TFETextCache;
   public
     constructor Create(const AFont: TFETextCacheFont; const AFlags: TFillTextFlags; const AWordWrap: Boolean; const AAlignHor, AAlignVer: TTextAlign); reintroduce;
     destructor Destroy; override;
+
+    procedure Cull(const ANotUsedForSeconds: Double); override;
+
     property AlignHor: TTextAlign read FAlignHor;
     property AlignVer: TTextAlign read FAlignVer;
     property Flags: TFillTextflags read FFlags;
-    property Images: TFETextCache read FImages;
+    property Images: TFETextCache read GetImages;
     property WordWrap: Boolean read FWordwrap;
   end;
 
@@ -189,7 +206,7 @@ type
     TFETextCache
       -
   }
-  TFETextCache = class(TPersistent)
+  TFETextCache = class(TFECullablePersistent)
   private
     FAngles: Array[0..359] of TBitmap;
     FSettings: TFETextCacheTextSettings;
@@ -199,6 +216,7 @@ type
   public
     constructor Create(const ASettings: TFETextCacheTextSettings); reintroduce;
     destructor Destroy; override;
+
     property Angles[const AAngle: Integer]: TBitmap read GetAngle;
   end;
 
@@ -265,6 +283,14 @@ begin
   for I := High(FStrings) downto Low(FStrings) do
     FStrings[I].Free;
   SetLength(FStrings, 0);
+end;
+
+procedure TFETextCacheFactory.CullCache(const ANotUsedForSeconds: Double);
+var
+  I: Integer;
+begin
+  for I := High(FStrings) downto Low(FStrings) do
+    FStrings[I].Cull(ANotUsedForSeconds);
 end;
 
 procedure TFETextCacheFactory.DeleteString(const ATextString: TFETextCacheString);
@@ -424,6 +450,15 @@ begin
   FManager.AddString(Self);
 end;
 
+procedure TFETextCacheString.Cull(const ANotUsedForSeconds: Double);
+var
+  I: Integer;
+begin
+  for I := High(FColors) downto Low(FColors) do
+    FColors[I].Cull(ANotUsedForSeconds);
+  inherited;
+end;
+
 procedure TFETextCacheString.DeleteColor(const AColor: TFETextCacheColor);
 var
   I: Integer;
@@ -452,6 +487,8 @@ begin
     Result := TFETextCacheColor.Create(Self, AColor)
   else
     Result := FColors[LIndex];
+
+  UpdateLastUsed;
 end;
 
 function TFETextCacheString.GetColorIndex(const AColor: TAlphaColor): Integer;
@@ -510,6 +547,15 @@ begin
   FString.AddColor(Self);
 end;
 
+procedure TFETextCacheColor.Cull(const ANotUsedForSeconds: Double);
+var
+  I: Integer;
+begin
+  for I := High(FFonts) downto Low(FFonts) do
+    FFonts[I].Cull(ANotUsedForSeconds);
+  inherited;
+end;
+
 procedure TFETextCacheColor.DeleteFont(const AFont: TFETextCacheFont);
 var
   I: Integer;
@@ -538,6 +584,8 @@ begin
     Result := TFETextCacheFont.Create(Self, AFont)
   else
     Result := FFonts[LIndex];
+
+  UpdateLastUsed;
 end;
 
 function TFETextCacheColor.GetFontIndex(const AFont: TFont): Integer;
@@ -582,6 +630,15 @@ begin
   FColor.AddFont(Self);
 end;
 
+procedure TFETextCacheFont.Cull(const ANotUsedForSeconds: Double);
+var
+  I: Integer;
+begin
+  for I := High(FTextSettings) downto Low(FTextSettings) do
+    FTextSettings[I].Cull(ANotUsedForSeconds);
+  inherited;
+end;
+
 procedure TFETextCacheFont.DeleteTextSettings(const ATextSettings: TFETextCacheTextSettings);
 var
   I: Integer;
@@ -610,6 +667,8 @@ begin
     Result := TFETextCacheTextSettings.Create(Self, AFlags, AWordWrap, AAlignHor, AAlignVer)
   else
     Result := FTextSettings[LIndex];
+
+  UpdateLastUsed;
 end;
 
 function TFETextCacheFont.GetTextSettingsIndex(const AFlags: TFillTextFlags; const AWordWrap: Boolean; const AAlignHor, AAlignVer: TTextAlign): Integer;
@@ -642,11 +701,23 @@ begin
   FImages := TFETextCache.Create(Self);
 end;
 
+procedure TFETextCacheTextSettings.Cull(const ANotUsedForSeconds: Double);
+begin
+  FImages.Cull(ANotUsedForSeconds);
+  inherited;
+end;
+
 destructor TFETextCacheTextSettings.Destroy;
 begin
   FFont.DeleteTextSettings(Self);
   FImages.Free;
   inherited;
+end;
+
+function TFETextCacheTextSettings.GetImages: TFETextCache;
+begin
+  UpdateLastUsed;
+  Result := FImages;
 end;
 
 { TFETextCache }
@@ -723,6 +794,7 @@ begin
       GenerateRotation(LAngle);
 
   Result := FAngles[LAngle];
+  UpdateLastUsed;
 end;
 
 initialization
