@@ -50,6 +50,8 @@ uses
     - Note that the LKSL is used within this unit.
 
   Changelog (latest changes first):
+    27th September 2014 (bug fix update):
+      - Fixed two minor bugs.
     27th September 2014:
       - Prepared for Release
 }
@@ -417,9 +419,9 @@ end;
 constructor TFETextCacheString.Create(const ACacheManager: TFETextCacheFactory; const AValue: String);
 begin
   inherited Create;
+  FValue := AValue;
   FManager := ACacheManager;
   FManager.AddString(Self);
-  FValue := AValue;
 end;
 
 procedure TFETextCacheString.DeleteColor(const AColor: TFETextCacheColor);
@@ -503,9 +505,9 @@ end;
 constructor TFETextCacheColor.Create(const AString: TFETextCacheString; const AValue: TAlphaColor);
 begin
   inherited Create;
+  FValue := AValue;
   FString := AString;
   FString.AddColor(Self);
-  FValue := AValue;
 end;
 
 procedure TFETextCacheColor.DeleteFont(const AFont: TFETextCacheFont);
